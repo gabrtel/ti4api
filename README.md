@@ -1,4 +1,7 @@
-# Sumary:
+# TI4 API:
+Api to handle time and actions of a Twilight Imperium 4 game.
+
+
 
 # **Avaiable Methods**
 

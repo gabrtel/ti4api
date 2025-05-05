@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Player Selection</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f9;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    .player {
+      margin-bottom: 20px;
+      padding: 15px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+    }
+    label {
+      display: block;
+      margin: 5px 0 2px;
+    }
+    select, input[type="text"] {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    button {
+      padding: 10px 20px;
+      background: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    .results {
+      margin-top: 20px;
+      padding: 10px;
+      background: #e9ffe9;
+      border: 1px solid #b2e6b2;
+      border-radius: 5px;
+    }
+    .result-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 5px 0;
+    }
+    .result-item a {
+      color: #007BFF;
+      text-decoration: none;
+      word-break: break-all;
+    }
+    .copy-btn {
+      margin-left: 10px;
+      padding: 5px 10px;
+      font-size: 0.9em;
+      background: #28a745;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    .copy-btn:hover {
+      background: #218838;
+    }
+    @media (max-width: 600px) {
+      .container {
+        padding: 10px;
+      }
+      .player {
+        padding: 10px;
+      }
+      .result-item {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .copy-btn {
+        margin-left: 0;
+        margin-top: 5px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Select Players (3-8)</h2>
+    <label for="numPlayers">Number of Players:</label>
+    <select id="numPlayers" onchange="renderPlayers()">
+      <option value="">Select</option>
+      <option value="3">3</option>
+      <option value="4">4</option>
+      <option value="5">5</option>
+      <option value="6">6</option>
+      <option value="7">7</option>
+      <option value="8">8</option>
+    </select>
+    <form id="playerForm" onsubmit="submitForm(event)">
+      <div id="players"></div>
+      <button type="submit">Submit</button>
+    </form>
+    <div id="results" class="results" style="display:none;"></div>
+  </div>
+
+  <script>
+    const factions = [
+      "arborec", "letnev", "saar", "muaat", "hacan", "sol", "creuss", "l1z1x",
+      "mentak", "naalu", "nekro", "sardakk", "jolnar", "xxcha", "yin", "yssaril",
+      "argent", "empyrean", "manhact", "naazrokha", "nomad", "titans", "cabal", "council"
+    ];
+
+    const serverBaseUrl = window.location.hostname.includes("localhost") ?
+      "http://localhost:8000" :
+      "https://server.gabr.tel";
+    const apiEndpoint = "https://server.gabr.tel/ti4/api/api1.php";
+
+    function renderPlayers() {
+      const num = parseInt(document.getElementById("numPlayers").value);
+      const playersDiv = document.getElementById("players");
+      playersDiv.innerHTML = "";
+      if (isNaN(num) || num < 3 || num > 8) return;
+
+      for (let i = 0; i < num; i++) {
+        const playerHtml = `
+          <div class="player">
+            <h4>Player ${i + 1}</h4>
+            <label>Name:</label>
+            <input type="text" name="name" required />
+
+            <label>Faction:</label>
+            <select name="faction" required>
+              <option value="">Select faction</option>
+              ${factions.map(f => `<option value="${f}">${f}</option>`).join("")}
+            </select>
+
+            <label>Admin:</label>
+            <select name="admin">
+              <option value="false">False</option>
+              <option value="true">True</option>
+            </select>
+          </div>
+        `;
+        playersDiv.innerHTML += playerHtml;
+      }
+    }
+
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        alert("Link copied to clipboard!");
+      }).catch(err => {
+        console.error("Copy failed", err);
+      });
+    }
+
+    function submitForm(e) {
+      e.preventDefault();
+      const playerDivs = document.querySelectorAll(".player");
+      const players = [];
+      const usedFactions = new Set();
+
+      for (const div of playerDivs) {
+        const name = div.querySelector("input[name='name']").value.trim();
+        const faction = div.querySelector("select[name='faction']").value;
+        const admin = div.querySelector("select[name='admin']").value === 'true';
+
+        if (!name || !faction) {
+          alert("Please complete all fields for each player.");
+          return;
+        }
+
+        if (usedFactions.has(faction)) {
+          alert("Each player must choose a unique faction.");
+          return;
+        }
+
+        usedFactions.add(faction);
+        players.push({ name, faction, admin });
+      }
+
+      const payload = {
+        method: "newGame",
+        new_players: players
+      };
+
+      fetch(apiEndpoint, {
+        method: "POST",
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      })
+      .then(response => response.json())
+      .then(result => {
+        if (result.ok && Array.isArray(result.data)) {
+          const resultsDiv = document.getElementById("results");
+          resultsDiv.innerHTML = '<strong>Links:</strong>';
+          result.data.forEach(entry => {
+            const type = entry.player_type;
+            const hash = entry.hash;
+            const url = `${serverBaseUrl}/ti4/api/room.html?hash=${encodeURIComponent(hash)}`;
+            resultsDiv.innerHTML += `
+              <div class="result-item">
+                <a href="${url}" target="_blank">${type.toUpperCase()} Link</a>
+                <button class="copy-btn" onclick="copyToClipboard('${url}')">Copy</button>
+              </div>`;
+          });
+          resultsDiv.style.display = 'block';
+        } else {
+          alert("Server responded with an unexpected format.");
+        }
+      })
+      .catch(error => alert("Submission failed."));
+    }
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>TI4 Room</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #111;
+      color: #eee;
+      margin: 0;
+      padding: 20px;
+    }
+
+    button {
+      display: block;
+      width: 100%;
+      padding: 20px;
+      margin: 10px 0;
+      font-size: 18px;
+      background-color: #444;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.4s ease;
+    }
+
+    button:hover {
+      background-color: #555;
+    }
+
+    button.selected {
+      background-color: #777;
+    }
+
+    button.confirmed {
+      background-color: #2a2 !important;
+      animation: confirmFlash 0.5s ease-out forwards;
+    }
+
+    @keyframes confirmFlash {
+      0% { background-color: #2a2; }
+      80% { background-color: #2a2; }
+      100% { background-color: #444; }
+    }
+
+    #content {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    #message {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #2a2;
+      color: #000;
+      padding: 10px 20px;
+      border-radius: 5px;
+      font-weight: bold;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+      z-index: 1000;
+      display: none;
+    }
+
+    #message.show {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="content">
+    <div id="player-select"></div>
+    <div id="game-info" style="display: none;">
+      <h2 id="action-title"></h2>
+      <p id="countdown"></p>
+      <div id="options"></div>
+    </div>
+  </div>
+  <div id="message"></div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const hash = urlParams.get("hash");
+    let faction = null;
+    let countdownInterval = null;
+    let lastFrontDo = null;
+    let selectedButton = null;
+    let timeOffset = 0;
+
+    if (!hash) {
+      alert("Missing hash in URL!");
+      throw new Error("Missing hash in URL");
+    }
+
+    function showMessage(text) {
+      const msg = document.getElementById("message");
+      msg.textContent = text;
+
+      msg.style.display = "block";
+      msg.classList.remove("show");
+
+      requestAnimationFrame(() => {
+        msg.classList.add("show");
+
+        setTimeout(() => {
+          msg.classList.remove("show");
+          setTimeout(() => {
+            msg.style.display = "none";
+          }, 500);
+        }, 3000);
+      });
+    }
+
+    async function fetchRoomInfo() {
+      const res = await fetch(`https://server.gabr.tel/ti4/api/api1.php?method=infoRoom&hash=${hash}`, {
+        method: "POST"
+      });
+      const clientTime = Math.floor(Date.now() / 1000);
+      const json = await res.json();
+      if (json?.data?.server_time) {
+        timeOffset = clientTime - json.data.server_time;
+      }
+      return json;
+    }
+
+    async function fetchRoomInfoWithFaction() {
+      const clientTime = Math.floor(Date.now() / 1000);
+      const res = await fetch(`https://server.gabr.tel/ti4/api/api1.php?method=infoRoom&hash=${hash}&faction=${faction}`, {
+        method: "POST"
+      });
+      const json = await res.json();
+      if (json?.data?.server_time) {
+        timeOffset = clientTime - json.data.server_time;
+      }
+      return json;
+    }
+
+    function selectPlayer(players) {
+      const container = document.getElementById("player-select");
+      container.innerHTML = "<h2>Select your player:</h2>";
+      players.forEach(p => {
+        const btn = document.createElement("button");
+        btn.textContent = `${p.name} (${p.faction})`;
+        btn.onclick = () => {
+          faction = p.faction;
+          container.style.display = "none";
+          document.getElementById("game-info").style.display = "block";
+          startGameLoop();
+        };
+        container.appendChild(btn);
+      });
+    }
+
+    function updateCountdown(countdownUnix) {
+      if (countdownInterval) clearInterval(countdownInterval);
+      countdownInterval = setInterval(() => {
+        const now = Math.floor(Date.now() / 1000);
+        let remaining = countdownUnix - (now - timeOffset);
+        document.getElementById("countdown").textContent = `Countdown: ${remaining} seconds`;
+      }, 1000);
+    }
+
+    function createOptions(options, container, callback) {
+      container.innerHTML = '';
+      selectedButton = null;
+
+      const normalized = Array.isArray(options[0]) ? options : [options];
+
+      normalized.forEach(group => {
+        group.forEach(option => {
+          const btn = document.createElement("button");
+          btn.textContent = option.option;
+
+          btn.onclick = async () => {
+            if (selectedButton !== btn) {
+              if (selectedButton) selectedButton.classList.remove("selected");
+              selectedButton = btn;
+              btn.classList.add("selected");
+              return;
+            }
+
+            if (option.m_title && option.m_options) {
+              showSubOptions(option.m_title, option.m_options, callback);
+            } else {
+              const response = await fetch(option.link, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(option.data)
+              });
+              const resData = await response.json();
+              if (resData?.result) showMessage(resData.result);
+              btn.classList.add("confirmed");
+            }
+          };
+
+          container.appendChild(btn);
+        });
+      });
+    }
+
+    function showSubOptions(title, subOptions, callback) {
+      const actionTitle = document.getElementById("action-title");
+      const optionsDiv = document.getElementById("options");
+      actionTitle.textContent = title;
+      optionsDiv.innerHTML = '';
+      selectedButton = null;
+
+      subOptions.forEach(opt => {
+        const btn = document.createElement("button");
+        btn.textContent = opt.option;
+
+        btn.onclick = async () => {
+          if (selectedButton !== btn) {
+            if (selectedButton) selectedButton.classList.remove("selected");
+            selectedButton = btn;
+            btn.classList.add("selected");
+            return;
+          }
+
+          const response = await fetch(opt.link, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(opt.data)
+          });
+          const resData = await response.json();
+          if (resData?.result) showMessage(resData.result);
+          btn.classList.add("confirmed");
+        };
+
+        optionsDiv.appendChild(btn);
+      });
+    }
+
+    async function startGameLoop() {
+      setInterval(async () => {
+        const data = await fetchRoomInfoWithFaction();
+        const what = data?.data?.what_front_should_do;
+
+        if (!what) return;
+
+        const currentDo = JSON.stringify(what);
+        if (currentDo === lastFrontDo) return;
+        lastFrontDo = currentDo;
+
+        document.getElementById("action-title").innerHTML = what.title.replace(/\n/g, "<br>");
+
+
+        if (what.countdown) updateCountdown(what.countdown);
+
+        createOptions(what.options, document.getElementById("options"), async (selected) => {
+          const response = await fetch(selected.link, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(selected.data)
+          });
+          const resData = await response.json();
+          if (resData?.result) showMessage(resData.result);
+        });
+      }, 2000);
+    }
+
+    fetchRoomInfo().then(data => {
+      const players = data?.data?.players || [];
+      selectPlayer(players);
+    });
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TI4 Room</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      font-family: sans-serif;
+      background: #111;
+      color: white;
+      display: flex;
+      flex-direction: column;
+    }
+    #title, #countdown {
+      text-align: center;
+      padding: 1rem;
+    }
+    .button-grid {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .button {
+      flex: 1;
+      padding: 2rem;
+      font-size: 2rem;
+      text-align: center;
+      background: #333;
+      color: white;
+      border: 2px solid white;
+      border-radius: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1rem;
+    }
+    .selected {
+      background-color: #4444ff;
+    }
+    #message {
+      position: fixed;
+      top: 10%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.8);
+      padding: 1rem;
+      border-radius: 1rem;
+      opacity: 0;
+      transition: opacity 0.5s;
+    }
+    #message.show {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="title">Loading...</div>
+  <div id="countdown"></div>
+  <div class="button-grid" id="buttons"></div>
+  <div id="message"></div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const hash = urlParams.get('hash');
+    let faction = null;
+    let selectedButton = null;
+    let lastActionJSON = null;
+    let countdownValue = null;
+    let countdownEnd = null; // The end time of the countdown from the server
+    let serverTimeAtRequest = null;
+    let clientTimeAtRequest = null;
+
+    async function postData(link, data) {
+      const response = await fetch(link, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await response.json();
+    }
+
+    function showMessage(text) {
+      const msg = document.getElementById('message');
+      msg.innerText = text;
+      msg.classList.add('show');
+      setTimeout(() => msg.classList.remove('show'), 3000);
+    }
+
+    function updateCountdownDisplay() {
+      const countdownEl = document.getElementById('countdown');
+      if (countdownValue === null || countdownValue < 0) {
+        countdownEl.innerText = '';
+        return;
+      }
+      countdownEl.innerText = `Countdown: ${countdownValue}s`;
+    }
+
+    function updateCountdownValue() {
+      const clientTimeNow = Math.floor(Date.now() / 1000);
+      const diff = countdownEnd - serverTimeAtRequest + (clientTimeAtRequest - clientTimeNow);
+      countdownValue = diff;
+    }
+
+    setInterval(() => {
+      if (countdownValue !== null) {
+        countdownValue -= 1;
+        updateCountdownDisplay();
+      }
+    }, 1000);
+
+    async function fetchRoomInfo() {
+      clientTimeAtRequest = Math.floor(Date.now() / 1000);
+      const endpoint = `https://server.gabr.tel/ti4/api/api1.php?method=infoRoom&hash=${hash}${faction ? `&faction=${faction}` : ''}`;
+      const response = await postData(endpoint, { hash, faction });
+
+      const action = response.data?.what_front_should_do || response.what_front_should_do;
+      if (!action) return;
+
+      const currentActionJSON = JSON.stringify(action);
+      if (currentActionJSON === lastActionJSON) return;
+      lastActionJSON = currentActionJSON;
+
+      // Update server and countdown info
+      if ('server_time' in response.data && 'countdown' in action) {
+        serverTimeAtRequest = response.data.server_time;
+        countdownEnd = action.countdown;
+        updateCountdownValue();
+      }
+
+      if (response.result) showMessage(response.result);
+      renderResponse(response);
+    }
+
+    function renderOptions(container, options, title) {
+      const titleEl = document.getElementById('title');
+      titleEl.innerText = title;
+      const buttonGrid = document.getElementById('buttons');
+      buttonGrid.innerHTML = '';
+      selectedButton = null;
+
+      options.flat().forEach(option => {
+        const button = createButton(option, async (btn, opt) => {
+          if (selectedButton === btn) {
+            if (opt.m_title && opt.m_options) {
+              renderOptions(buttonGrid, opt.m_options, opt.m_title);
+            } else {
+              const result = await postData(opt.link, opt.data);
+              if (result.result) showMessage(result.result);
+              renderResponse(result);
+            }
+          } else {
+            document.querySelectorAll('.button').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            selectedButton = btn;
+          }
+        });
+        buttonGrid.appendChild(button);
+      });
+    }
+
+    function createButton(option, onClick) {
+      const btn = document.createElement('div');
+      btn.className = 'button';
+      btn.innerText = option.option;
+      btn.onclick = () => onClick(btn, option);
+      return btn;
+    }
+
+    function renderResponse(data) {
+      const action = data.data?.what_front_should_do || data.what_front_should_do;
+      if (!action) return;
+      renderOptions(document.getElementById('buttons'), action.options, action.title);
+    }
+
+    function poll() {
+      fetchRoomInfo();
+      setInterval(fetchRoomInfo, 2000);
+    }
+
+    window.onload = async () => {
+      faction = null;
+      await fetchRoomInfo();
+      document.getElementById('buttons').addEventListener('click', async e => {
+        const selected = e.target.closest('.button');
+        if (selected && !faction) {
+          const option = selected.innerText;
+          faction = option;
+          await fetchRoomInfo();
+          poll();
+        }
+      });
+    };
+  </script>
+</body>
+</html>
+

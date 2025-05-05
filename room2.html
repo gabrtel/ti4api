@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TI4 Room</title>
+  <style>
+    body {
+      margin: 5;
+      font-family: sans-serif;
+      background: #111;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      justify-content: center;
+      align-items: center;
+      padding: 5px;
+    }
+    #title, #countdown, #result {
+      margin: 5px 0;
+      text-align: center;
+    }
+    .button-grid {
+      display: flex;
+      flex-direction: column;
+      width: 90%;
+      gap: 10px;
+      padding: 5px;
+    }
+    .btn {
+      background: #222;
+      color: white;
+      font-size: 1.5rem;
+      padding: 20px;
+      border: 2px solid #444;
+      border-radius: 10px;
+      width: 95%;
+      text-align: center;
+      transition: background 0.3s;
+    }
+    .btn.selected {
+      background: grey;
+    }
+    #result {
+      background: green;
+      position: fixed;
+      bottom: 10px;
+      left: 50;
+      right: 0;
+      text-align: center;
+      opacity: 0;
+      transition: opacity 0.5s;
+    }
+  </style>
+</head>
+<body>
+  <div id="title">Loading...</div>
+  <div id="countdown"></div>
+  <div class="button-grid" id="buttons"></div>
+  <div id="result"></div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const hash = urlParams.get("hash");
+    let faction = null;
+    let selected = null;
+    let pollInterval = null;
+    let lastUIState = null;
+    let countdownTarget = null;
+
+    const api = async (method, data = {}) => {
+      data.hash = hash;
+      if (faction) data.faction = faction;
+      const res = await fetch(`https://server.gabr.tel/ti4/api/api1.php?method=${method}&hash=${encodeURIComponent(hash)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      });
+      return res.json();
+    };
+
+    const showResult = (msg) => {
+      const resultDiv = document.getElementById("result");
+      resultDiv.textContent = msg;
+      resultDiv.style.opacity = 1;
+      setTimeout(() => { resultDiv.style.opacity = 0 }, 3000);
+    };
+
+    const serializeUIState = (data) => {
+      return JSON.stringify(data);
+    };
+
+    const updateCountdown = () => {
+      if (countdownTarget !== null) {
+        const now = Math.floor(Date.now() / 1000);
+        const diff = countdownTarget - now;
+        document.getElementById("countdown").textContent = `Time left: ${diff}s`;
+      }
+    };
+
+    const updateUI = async () => {
+      try {
+        const res = await api("infoRoom");
+        if (!res.ok) return;
+        if (res.result) showResult(res.result);
+
+        const currentState = serializeUIState(res.data.what_front_should_do);
+        if (lastUIState === currentState) return;
+        lastUIState = currentState;
+
+        const { title, countdown, options } = res.data.what_front_should_do || {};
+
+        document.getElementById("title").textContent = title || "";
+        countdownTarget = countdown !== undefined ? countdown : null;
+        updateCountdown();
+
+        const buttonsDiv = document.getElementById("buttons");
+        buttonsDiv.innerHTML = "";
+        if (!options) return;
+
+        (Array.isArray(options[0]) ? options : [options]).forEach(group => {
+          const row = document.createElement("div");
+          row.className = "button-group";
+          group.forEach(opt => {
+            const btn = document.createElement("div");
+            btn.className = "btn";
+            btn.textContent = opt.option;
+            btn.onclick = () => handleClick(btn, opt);
+            row.appendChild(btn);
+          });
+          buttonsDiv.appendChild(row);
+        });
+
+      } catch (e) {
+        console.error("API Error:", e);
+      }
+    };
+
+    const handleClick = async (btn, opt) => {
+      const allBtns = document.querySelectorAll(".btn");
+      if (selected !== btn) {
+        allBtns.forEach(b => b.classList.remove("selected"));
+        btn.classList.add("selected");
+        selected = btn;
+        return;
+      }
+
+      if (opt.m_options) {
+        document.getElementById("title").textContent = opt.m_title || "Choose:";
+        const buttonsDiv = document.getElementById("buttons");
+        buttonsDiv.innerHTML = "";
+        opt.m_options.forEach(sub => {
+          const subBtn = document.createElement("div");
+          subBtn.className = "btn";
+          subBtn.textContent = sub.option;
+          subBtn.onclick = () => handleClick(subBtn, sub);
+          buttonsDiv.appendChild(subBtn);
+        });
+        return;
+      }
+
+      const res = await fetch(opt.link, {
+        method: opt.method || "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(opt.data)
+      });
+      const json = await res.json();
+      if (json.result) showResult(json.result);
+      if (!faction && opt.data.faction) {
+        faction = opt.data.faction;
+        localStorage.setItem("faction", faction);
+        startPolling();
+      }
+      selected = null;
+      updateUI();
+    };
+
+    const startPolling = () => {
+      if (pollInterval) clearInterval(pollInterval);
+      updateUI();
+      pollInterval = setInterval(() => {
+        updateUI();
+        updateCountdown();
+      }, 2000);
+      setInterval(updateCountdown, 1000);
+    };
+
+    // Init
+    localStorage.removeItem("faction");
+    if (hash) {
+      updateUI();
+      setInterval(updateCountdown, 1000);
+    } else {
+      document.getElementById("title").textContent = "Missing hash in URL";
+    }
+  </script>
+</body>
+</html>
+

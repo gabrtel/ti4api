@@ -1,7 +1,8 @@
 # TI4 API:
 Api to handle time and actions of a Twilight Imperium 4 game.
 
-
+Live test:
+https://server.gabr.tel/ti4/api/java.html
 
 # **Avaiable Methods**
 

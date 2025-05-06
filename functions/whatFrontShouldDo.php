@@ -367,6 +367,7 @@ Choose new speaker:";
                 ],
             ];
         } else{
+            
             $what_front_should_do["options"][] = [
                 [
                     "option" => "Use {$strategy_names[$players[0]["strategy_card"]]}",

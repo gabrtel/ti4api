@@ -245,15 +245,15 @@ elseif($phase == "agenda_phase"){
     //unix_playing_since 0,
     //unix_playing_until 0,
     //currently_playing false, 
-    foreach($room["players"] as $key => $player){
-        $room["players"][$key]["strategy_card"] = null;
-        $room["players"][$key]["already_used_strategy_card"] = false;
-        $room["players"][$key]["already_passed_turn"] = false;
-        $room["players"][$key]["will_use_secondary"] = null;
-        $room["players"][$key]["unix_playing_since"] = 0;
-        $room["players"][$key]["unix_playing_until"] = 0;
-        $room["players"][$key]["currently_playing"] = false;
-    }
+    //foreach($room["players"] as $key => $player){
+    //    $room["players"][$key]["strategy_card"] = null;
+    //    $room["players"][$key]["already_used_strategy_card"] = false;
+    //    $room["players"][$key]["already_passed_turn"] = false;
+    //    $room["players"][$key]["will_use_secondary"] = null;
+    //    $room["players"][$key]["unix_playing_since"] = 0;
+    //    $room["players"][$key]["unix_playing_until"] = 0;
+    //    $room["players"][$key]["currently_playing"] = false;
+    //}
 
     //set current phase to agenda_phase
     $old_phase = $room["game"]["current_phase"];

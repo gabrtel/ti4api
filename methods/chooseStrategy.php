@@ -126,10 +126,17 @@ $room["logs"][$round_key][$phase_key][] = [
     "unix_time_end" => time(),
 ];
 
-
+//check if all players have already passed their turn
+$all_passed = true;
+foreach($room["players"] as $key => $player){
+    if($player["already_passed_turn"] == false){
+        $all_passed = false;
+        break;
+    }
+}
 
 //there is no next player, go to next phase
-if($next_player_id === null or $next_player_id === false){
+if($all_passed){
 
     //go to next phase
     $old_phase = $room["game"]["current_phase"];

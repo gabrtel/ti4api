@@ -39,7 +39,57 @@
       background-color: #2a2 !important;
       animation: confirmFlash 0.5s ease-out forwards;
     }
+    
+    h2 {
+      text-align: center;
+      position: relative;
+      margin: 30px;
+    }
+    
+    #undo-button {
+      position: absolute;
+      width: 180px;
+      margin: auto;
+      float: right;
+      top: 10px;
+      right: 10px;
+      background-color: #222;
+      color: #fff;
+      border: none;
+      font-size: 16px;
+      padding: 6px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      z-index: 1001;
+      transition: background-color 0.3s ease;
+    }
+    #undo-button:hover {
+      background-color: #333;
+    }
+    
+    #pause-button {
+      position: absolute;
+      width: 100px;
+      margin: auto;
+      float: left;
+      top: 10px;
+      left: 10px;
+      background-color: #222;
+      color: #fff;
+      border: none;
+      font-size: 16px;
+      padding: 6px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      z-index: 1001;
+      transition: background-color 0.3s ease;
+    }
 
+    #pause-button:hover {
+      background-color: #333;
+    }
+
+    
     @keyframes confirmFlash {
       0% { background-color: #2a2; }
       80% { background-color: #2a2; }
@@ -74,6 +124,8 @@
 </head>
 <body>
   <div id="content">
+    <button id="pause-button" title="Pause Game" style="display: none;">Pause</button>
+    <button id="undo-button" title="Undo Action" style="display: none;">Undo Last Action</button>
     <div id="player-select"></div>
     <div id="game-info" style="display: none;">
       <h2 id="action-title"></h2>
@@ -239,6 +291,14 @@
     async function startGameLoop() {
       setInterval(async () => {
         const data = await fetchRoomInfoWithFaction();
+        
+        // Mostrar botão de pausa se for admin
+        const isAdmin = data?.data?.you?.admin === true;
+        if (isAdmin) {
+          document.getElementById("pause-button").style.display = "block";
+          document.getElementById("undo-button").style.display = "block";
+        }
+        
         const what = data?.data?.what_front_should_do;
 
         if (!what) return;
@@ -263,11 +323,78 @@
         });
       }, 1000);
     }
+    
+    document.getElementById("undo-button").onclick = async () => {
+      if (!faction || !hash) {
+        showMessage("You must select a player first.");
+        return;
+      }
+      
+      const confirmed = confirm("Are you sure you want to undo the last action?");
+       if (!confirmed) return;
+      
+      try {
+        const response = await fetch(`https://server.gabr.tel/ti4/api/api1.php?method=undoAction`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            faction: faction,
+            hash: hash
+          })
+        });
 
+        const resData = await response.json();
+        if (resData?.result) {
+          showMessage(resData.result);
+        } else {
+          showMessage("Undo request sent.");
+        }
+      } catch (e) {
+        showMessage("Error sending undo request.");
+        console.error(e);
+      }
+    };
+    
+    document.getElementById("pause-button").onclick = async () => {
+      if (!faction || !hash) {
+        showMessage("You must select a player first.");
+        return;
+      }
+      
+      const confirmed = confirm("Are you sure you want to pause the game?");
+       if (!confirmed) return;
+      
+      try {
+        const response = await fetch(`https://server.gabr.tel/ti4/api/api1.php?method=pauseGame`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            pause: true,
+            faction: faction,
+            hash: hash
+          })
+        });
+
+        const resData = await response.json();
+        if (resData?.result) {
+          showMessage(resData.result);
+        } else {
+          showMessage("Pause request sent.");
+        }
+      } catch (e) {
+        showMessage("Error sending pause request.");
+        console.error(e);
+      }
+    };
+    
     fetchRoomInfo().then(data => {
       const players = data?.data?.players || [];
       selectPlayer(players);
+      
     });
+    
+
+
   </script>
 </body>
 </html>

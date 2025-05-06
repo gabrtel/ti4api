@@ -71,7 +71,7 @@ elseif($room["game"]["paused"] and $room["players"][array_search($faction, array
             "data" => [
                 "hash" => $hash,
                 "faction" => $faction,
-                "pause" => "false"
+                "pause" => false
             ]
         ],
         [

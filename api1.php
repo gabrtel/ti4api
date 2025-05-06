@@ -265,6 +265,10 @@ elseif(strcasecmp($query["method"], "chooseSecondary") == 0){
 elseif(strcasecmp($query["method"], "pauseGame") == 0){
     require_once "./methods/pauseGame.php";
 }
+// Handle method undoAction
+elseif(strcasecmp($query["method"], "undoAction") == 0){
+    require_once "./methods/undoAction.php";
+}
 
 //method not valid
 else {

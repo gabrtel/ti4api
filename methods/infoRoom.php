@@ -54,6 +54,14 @@ if($player_type == null){
     exit;
 }
 
+foreach($room["players"] as $key => $player){
+    if(!isset($player["faction"])){
+       unset($room["players"][$key]);
+       break;
+    }
+}
+$room["players"] = array_values($room["players"]);
+
 $faction = null;
 // check if faction is in the room
 if(isset($query["faction"])){

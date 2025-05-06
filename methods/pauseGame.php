@@ -69,7 +69,13 @@ if($faction == null){
     exit;
 }
 
-if($query["pause"] === false or $query["pause"] === true){
+if($query["pause"] === "false"){
+    $query["pause"] = false;
+} else if($query["pause"] === "true"){
+    $query["pause"] = true;
+} else if($query["pause"] === "null"){
+    $query["pause"] = null;
+} else if(is_bool($query["pause"])){
     //ok
 } else{
     echo json_encode(["ok"=>false, "result" => "pause parameter is not a valid boolean"]);
@@ -77,7 +83,19 @@ if($query["pause"] === false or $query["pause"] === true){
     exit;
 }
 
-
+if($query["pause"] === true){
+        if($room["game"]["paused"]){
+            echo json_encode(["ok"=>false, "result" => "Game is already paused"]);
+            http_response_code(400);
+            exit;
+    }
+} else{
+    if(!$room["game"]["paused"]){
+        echo json_encode(["ok"=>false, "result" => "Game is already unpaused"]);
+        http_response_code(400);
+        exit;
+    }
+}
 
 // check if the game is paused
 if($query["pause"] === true and $room["game"]["unix_paused_since"] <= time() and time() < $room["game"]["unix_paused_until"] ){
@@ -108,8 +126,8 @@ foreach($room["players"] as $key => $player){
 if($query["pause"] === true){
     $room["game"]["unix_paused_since"] = time();
     $room["game"]["paused"] = true;
-    if(isset($player_key)){
-        $room["game"]["faction_to_give_pause_time"] = $player_key;
+    if(isset($faction_playing)){
+        $room["game"]["faction_to_give_pause_time"] = $faction_playing;
     } else{
         $room["game"]["faction_to_give_pause_time"] = null;
     }
@@ -131,8 +149,9 @@ if($query["pause"] === true){
     $room["game"]["unix_paused_until"] = time();
     $room["game"]["paused"] = false;
     if($room["game"]["faction_to_give_pause_time"] != null){
-        $room["players"][$room["game"]["faction_to_give_pause_time"]]["unix_playing_since"] += $time_paused ;
-        $room["players"][$room["game"]["faction_to_give_pause_time"]]["unix_playing_until"] += $time_paused;
+        $faction_key = array_search($room["game"]["faction_to_give_pause_time"], array_column($room["players"], 'faction'));
+        $room["players"][$faction_key]["unix_playing_since"] += $time_paused ;
+        $room["players"][$faction_key]["unix_playing_until"] += $time_paused;
     }
     $room["game"]["faction_to_give_pause_time"] = null;
 

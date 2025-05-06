@@ -81,7 +81,7 @@ if(!isset($query["secondary"])){
     http_response_code(400);
     exit;
 }
-if($query["secondary"] != $room["game"]["last_strategy"]){
+if($query["secondary"] !== 0 and $query["secondary"] !== $room["game"]["last_strategy"]){
     echo json_encode(["ok"=>false, "result" => "This secondary cannot be chosen"]);
     http_response_code(400);
     exit;

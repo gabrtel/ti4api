@@ -18,6 +18,7 @@ include_once "./functions/validFaction.php";
 
 $content = file_get_contents("php://input");
 
+header('Content-Type: application/json');
 
 $hash_simulation = "1:68191fd171ebaTSJFrcI4vTvX";
 

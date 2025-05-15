@@ -406,7 +406,7 @@ Answer example:
 }
 ```
 
-## undoAction (not implemented yet)
+## undoAction
 
 An admin can undo any player last action
 

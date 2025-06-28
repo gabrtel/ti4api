@@ -40,7 +40,8 @@ Request example:
 	    "faction": "saar"
 	  ]
 	]
-]
+   ]
+}
 ```
 
 Answer example:

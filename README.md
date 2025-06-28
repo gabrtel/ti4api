@@ -13,12 +13,9 @@ Create a new game. At least 1 of the players should be an admin.
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
 | new_players | Array of player | Yes | Array of players **starting with the Speaker** |
-| time_action | Integer | Optional | Time for each player choose and make the action of the turn.
-Default 60 seconds. |
-| time_secondary | Integer | Optional | Time for each player choose to use secondary.
-Default 10 seconds. |
-| starter_time | Integer | Optional | Time each player will start with.
-Default 120 seconds |
+| time_action | Integer | Optional | Time for each player choose and make the action of the turn. Default 60 seconds. |
+| time_secondary | Integer | Optional | Time for each player choose to use secondary. Default 10 seconds. |
+| starter_time | Integer | Optional | Time each player will start with. Default 120 seconds |
 
 Request example:
 
